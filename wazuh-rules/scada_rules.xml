@@ -1,0 +1,506 @@
+<!--
+  SOC-MINI Custom Wazuh Rules
+  SCADA/ICS Security Rules for Municipal Water Treatment Plant
+  
+  INSTALLATION:
+  Copy this file to the Wazuh Manager container:
+  docker cp wazuh-rules/scada_rules.xml wazuh.manager:/var/ossec/etc/rules/local_rules.xml
+  
+  Then restart Wazuh Manager:
+  docker exec wazuh.manager /var/ossec/bin/wazuh-control restart
+  
+  Rule ID ranges:
+  100100-100109: Base SCADA rules
+  100110-100119: Login detection rules
+  100120-100129: PLC command rules
+  100130-100139: Sensor anomaly rules
+  100140-100149: Malware detection rules
+  100150-100159: IoC detection rules
+  100160-100169: IoA detection rules
+  100170-100179: MITRE mapping rules
+  100180-100189: CTI detection rules (highest priority)
+  100190-100199: Lateral movement rules
+-->
+
+<group name="scada,ics,soc-mini">
+
+  <!-- ============================================ -->
+  <!-- BASE SCADA RULES (100100-100109)             -->
+  <!-- ============================================ -->
+  
+  <!-- Base rule: Catch all SCADA_SOC messages -->
+  <!-- Level 6 to override built-in Wazuh rule 2501 (level 5) which matches generic syslog auth failures -->
+  <rule id="100100" level="6">
+    <match>SCADA_SOC:</match>
+    <description>SCADA SOC event received</description>
+    <group>scada,base</group>
+  </rule>
+
+  <!-- Normal SCADA operation -->
+  <rule id="100101" level="2">
+    <if_sid>100100</if_sid>
+    <match>event_type=SENSOR_READING</match>
+    <description>SCADA sensor reading within normal range</description>
+    <group>scada,sensor,normal</group>
+  </rule>
+
+  <!-- System health check -->
+  <rule id="100102" level="2">
+    <if_sid>100100</if_sid>
+    <match>event_type=SYSTEM_HEALTH</match>
+    <description>SCADA system health check</description>
+    <group>scada,health</group>
+  </rule>
+
+  <!-- ============================================ -->
+  <!-- LOGIN DETECTION RULES (100110-100119)        -->
+  <!-- ============================================ -->
+
+  <!-- Successful login - MITRE T1078: Valid Accounts -->
+  <rule id="100110" level="3">
+    <if_sid>100100</if_sid>
+    <match>event_type=LOGIN_ATTEMPT</match>
+    <match>status=SUCCESS</match>
+    <description>SCADA HMI login - successful authentication</description>
+    <mitre>
+      <id>T1078</id>
+    </mitre>
+    <group>scada,authentication,login_success</group>
+  </rule>
+
+  <!-- Failed login attempt - MITRE T1110: Brute Force -->
+  <rule id="100111" level="6">
+    <if_sid>100100</if_sid>
+    <match>event_type=LOGIN_ATTEMPT</match>
+    <match>status=FAILED</match>
+    <description>SCADA HMI login attempt FAILED - potential brute force attack</description>
+    <mitre>
+      <id>T1110</id>
+    </mitre>
+    <group>scada,authentication,login_failure</group>
+  </rule>
+
+  <!-- Brute force detection: 5 failed logins from same IP within 60 seconds - MITRE T1110: Brute Force -->
+  <rule id="100112" level="12" frequency="5" timeframe="60">
+    <if_matched_sid>100111</if_matched_sid>
+    <same_source_ip />
+    <description>BRUTE FORCE ATTACK detected on SCADA HMI - Multiple failed login attempts from same source IP</description>
+    <mitre>
+      <id>T1110</id>
+    </mitre>
+    <group>scada,authentication,brute_force,attack</group>
+  </rule>
+
+  <!-- ============================================ -->
+  <!-- PLC COMMAND RULES (100120-100129)            -->
+  <!-- ============================================ -->
+
+  <!-- Authorized PLC command -->
+  <rule id="100120" level="3">
+    <if_sid>100100</if_sid>
+    <match>event_type=PLC_COMMAND</match>
+    <match>status=AUTHORIZED</match>
+    <description>Authorized PLC command executed</description>
+    <group>scada,plc,authorized</group>
+  </rule>
+
+  <!-- Unauthorized PLC command - MITRE T0859: Command Execution (ICS) -->
+  <rule id="100121" level="14">
+    <if_sid>100100</if_sid>
+    <match>event_type=PLC_COMMAND</match>
+    <match>status=UNAUTHORIZED</match>
+    <description>CRITICAL: Unauthorized PLC command execution detected! Possible ICS attack.</description>
+    <mitre>
+      <id>T0859</id>
+    </mitre>
+    <group>scada,plc,unauthorized,attack,critical</group>
+  </rule>
+
+  <!-- PLC setpoint modification -->
+  <rule id="100122" level="13">
+    <if_sid>100121</if_sid>
+    <match>plc_command=MODIFY_SETPOINT</match>
+    <description>CRITICAL: Unauthorized PLC setpoint modification - Chemical dosing may be compromised</description>
+    <group>scada,plc,setpoint,attack,critical</group>
+  </rule>
+
+  <!-- PLC safety logic modification - MITRE T0829: Modify Control Logic -->
+  <rule id="100123" level="15">
+    <if_sid>100121</if_sid>
+    <match>plc_command=MODIFY_SAFETY_LOGIC</match>
+    <description>EMERGENCY: PLC safety logic modification attempt - Plant safety systems at risk!</description>
+    <mitre>
+      <id>T0829</id>
+    </mitre>
+    <group>scada,plc,safety,attack,emergency</group>
+  </rule>
+
+  <!-- ============================================ -->
+  <!-- SENSOR ANOMALY RULES (100130-100139)         -->
+  <!-- ============================================ -->
+
+  <!-- Sensor anomaly detected -->
+  <rule id="100130" level="10">
+    <if_sid>100100</if_sid>
+    <match>event_type=SENSOR_ANOMALY</match>
+    <description>SENSOR ANOMALY detected - Water quality parameters out of range</description>
+    <group>scada,sensor,anomaly,alert</group>
+  </rule>
+
+  <!-- Critical sensor status -->
+  <rule id="100131" level="13">
+    <if_sid>100130</if_sid>
+    <match>sensor_status=CRITICAL</match>
+    <description>CRITICAL SENSOR ALERT: Sensor reading at dangerous level - Public health risk!</description>
+    <group>scada,sensor,critical,public_health</group>
+  </rule>
+
+  <!-- pH sensor anomaly -->
+  <rule id="100132" level="12">
+    <if_sid>100130</if_sid>
+    <match>sensor_type=pH</match>
+    <description>pH SENSOR ANOMALY: Water pH level out of safe range - Possible chemical attack</description>
+    <group>scada,sensor,ph,chemical</group>
+  </rule>
+
+  <!-- Chlorine sensor anomaly -->
+  <rule id="100133" level="12">
+    <if_sid>100130</if_sid>
+    <match>sensor_type=chlorine</match>
+    <description>CHLORINE SENSOR ANOMALY: Chlorine levels abnormal - Water disinfection compromised</description>
+    <group>scada,sensor,chlorine,disinfection</group>
+  </rule>
+
+  <!-- Turbidity sensor anomaly -->
+  <rule id="100134" level="11">
+    <if_sid>100130</if_sid>
+    <match>sensor_type=turbidity</match>
+    <description>TURBIDITY SENSOR ANOMALY: Water clarity issues detected</description>
+    <group>scada,sensor,turbidity</group>
+  </rule>
+
+  <!-- ============================================ -->
+  <!-- MALWARE DETECTION RULES (100140-100149)      -->
+  <!-- ============================================ -->
+
+  <!-- Malware detected - MITRE T1070: Indicator Removal / Defense Evasion -->
+  <rule id="100140" level="14">
+    <if_sid>100100</if_sid>
+    <match>event_type=MALWARE_DETECTED</match>
+    <description>MALWARE DETECTED on SCADA/ICS system - Immediate response required!</description>
+    <mitre>
+      <id>T1070</id>
+    </mitre>
+    <group>scada,malware,attack,critical</group>
+  </rule>
+
+  <!-- Known ICS malware (Triton) - MITRE T0829: Modify Control Logic -->
+  <rule id="100141" level="15">
+    <if_sid>100140</if_sid>
+    <match>Triton</match>
+    <description>TRITON/TRISIS MALWARE detected - Safety Instrumented System (SIS) attack!</description>
+    <mitre>
+      <id>T0829</id>
+    </mitre>
+    <group>scada,malware,triton,sis,emergency</group>
+  </rule>
+
+  <!-- Known ICS malware (Industroyer) -->
+  <rule id="100142" level="15">
+    <if_sid>100140</if_sid>
+    <match>Industroyer</match>
+    <description>INDUSTROYER MALWARE detected - Industrial control system compromise!</description>
+    <group>scada,malware,industroyer,emergency</group>
+  </rule>
+
+  <!-- Known ICS malware (Stuxnet variant) -->
+  <rule id="100143" level="15">
+    <if_sid>100140</if_sid>
+    <match>Stuxnet</match>
+    <description>STUXNET-VARIANT MALWARE detected - PLC targeting malware!</description>
+    <group>scada,malware,stuxnet,emergency</group>
+  </rule>
+
+  <!-- ============================================ -->
+  <!-- IoC DETECTION RULES (100150-100159)          -->
+  <!-- ============================================ -->
+
+  <!-- Malicious IP IoC -->
+  <rule id="100150" level="10">
+    <if_sid>100100</if_sid>
+    <match>ioc_type=MALICIOUS_IP</match>
+    <description>IoC DETECTED: Connection from known malicious IP address</description>
+    <group>scada,ioc,malicious_ip</group>
+  </rule>
+
+  <!-- Anomalous sensor data IoC -->
+  <rule id="100151" level="9">
+    <if_sid>100100</if_sid>
+    <match>ioc_type=ANOMALOUS_SENSOR_DATA</match>
+    <description>IoC DETECTED: Anomalous sensor data - Possible data manipulation</description>
+    <group>scada,ioc,sensor_data</group>
+  </rule>
+
+  <!-- Malware signature IoC -->
+  <rule id="100152" level="12">
+    <if_sid>100100</if_sid>
+    <match>ioc_type=MALWARE_SIGNATURE</match>
+    <description>IoC DETECTED: Malware signature match on ICS system</description>
+    <group>scada,ioc,malware_signature</group>
+  </rule>
+
+  <!-- Unauthorized access IoC -->
+  <rule id="100153" level="11">
+    <if_sid>100100</if_sid>
+    <match>ioc_type=UNAUTHORIZED_ACCESS</match>
+    <description>IoC DETECTED: Unauthorized access attempt to ICS component</description>
+    <group>scada,ioc,unauthorized</group>
+  </rule>
+
+  <!-- Network anomaly IoC -->
+  <rule id="100154" level="10">
+    <if_sid>100100</if_sid>
+    <match>ioc_type=NETWORK_ANOMALY</match>
+    <description>IoC DETECTED: Network anomaly in ICS environment</description>
+    <group>scada,ioc,network</group>
+  </rule>
+
+  <!-- ============================================ -->
+  <!-- IoA DETECTION RULES (100160-100169)          -->
+  <!-- ============================================ -->
+
+  <!-- Brute force IoA -->
+  <rule id="100160" level="12">
+    <if_sid>100100</if_sid>
+    <match>ioa_type=BRUTE_FORCE_BEHAVIOR</match>
+    <description>IoA DETECTED: Brute force attack behavior pattern</description>
+    <group>scada,ioa,brute_force</group>
+  </rule>
+
+  <!-- Unauthorized PLC execution IoA -->
+  <rule id="100161" level="14">
+    <if_sid>100100</if_sid>
+    <match>ioa_type=UNAUTHORIZED_PLC_EXECUTION</match>
+    <description>IoA DETECTED: Unauthorized PLC command execution pattern</description>
+    <group>scada,ioa,plc_execution</group>
+  </rule>
+
+  <!-- Sensor manipulation IoA -->
+  <rule id="100162" level="11">
+    <if_sid>100100</if_sid>
+    <match>ioa_type=SENSOR_MANIPULATION</match>
+    <description>IoA DETECTED: Sensor data manipulation behavior</description>
+    <group>scada,ioa,sensor_manipulation</group>
+  </rule>
+
+  <!-- Malware execution IoA -->
+  <rule id="100163" level="13">
+    <if_sid>100100</if_sid>
+    <match>ioa_type=MALWARE_EXECUTION</match>
+    <description>IoA DETECTED: Malware execution behavior on ICS system</description>
+    <group>scada,ioa,malware_execution</group>
+  </rule>
+
+  <!-- IT-OT boundary crossing IoA -->
+  <rule id="100164" level="11">
+    <if_sid>100100</if_sid>
+    <match>ioa_type=IT_OT_BOUNDARY_CROSSING</match>
+    <description>IoA DETECTED: IT to OT network boundary crossing</description>
+    <group>scada,ioa,lateral_movement,it_ot</group>
+  </rule>
+
+  <!-- ============================================ -->
+  <!-- MITRE ATT&CK MAPPING RULES (100170-100179)  -->
+  <!-- ============================================ -->
+
+  <!-- MITRE T1078 - Valid Accounts -->
+  <rule id="100170" level="6">
+    <if_sid>100100</if_sid>
+    <match>mitre_id=T1078</match>
+    <description>MITRE ATT&CK T1078: Valid Accounts - Credential abuse detected</description>
+    <mitre>
+      <id>T1078</id>
+    </mitre>
+    <group>scada,mitre,t1078</group>
+  </rule>
+
+  <!-- MITRE T1110 - Brute Force -->
+  <rule id="100171" level="10">
+    <if_sid>100100</if_sid>
+    <match>mitre_id=T1110</match>
+    <description>MITRE ATT&CK T1110: Brute Force - Password attack detected</description>
+    <mitre>
+      <id>T1110</id>
+    </mitre>
+    <group>scada,mitre,t1110</group>
+  </rule>
+
+  <!-- MITRE T0859 - Valid Accounts ICS -->
+  <rule id="100172" level="8">
+    <if_sid>100100</if_sid>
+    <match>mitre_id=T0859</match>
+    <description>MITRE ATT&CK T0859: Valid Accounts (ICS) - ICS credential use</description>
+    <mitre>
+      <id>T0859</id>
+    </mitre>
+    <group>scada,mitre,t0859</group>
+  </rule>
+
+  <!-- MITRE T0855 - Unauthorized Command Message -->
+  <rule id="100173" level="13">
+    <if_sid>100100</if_sid>
+    <match>mitre_id=T0855</match>
+    <description>MITRE ATT&CK T0855: Unauthorized Command Message - ICS command injection</description>
+    <mitre>
+      <id>T0855</id>
+    </mitre>
+    <group>scada,mitre,t0855</group>
+  </rule>
+
+  <!-- MITRE T0832 - Manipulation of View -->
+  <rule id="100174" level="10">
+    <if_sid>100100</if_sid>
+    <match>mitre_id=T0832</match>
+    <description>MITRE ATT&CK T0832: Manipulation of View - HMI/Sensor data tampering</description>
+    <mitre>
+      <id>T0832</id>
+    </mitre>
+    <group>scada,mitre,t0832</group>
+  </rule>
+
+  <!-- MITRE T0829 - Modify Control Logic -->
+  <rule id="100175" level="14">
+    <if_sid>100100</if_sid>
+    <match>mitre_id=T0829</match>
+    <description>MITRE ATT&CK T0829: Modify Control Logic - PLC logic tampering</description>
+    <mitre>
+      <id>T0829</id>
+    </mitre>
+    <group>scada,mitre,t0829</group>
+  </rule>
+
+  <!-- MITRE T0866 - Exploitation of Remote Services -->
+  <rule id="100176" level="11">
+    <if_sid>100100</if_sid>
+    <match>mitre_id=T0866</match>
+    <description>MITRE ATT&CK T0866: Exploitation of Remote Services - Lateral movement</description>
+    <mitre>
+      <id>T0866</id>
+    </mitre>
+    <group>scada,mitre,t0866</group>
+  </rule>
+
+  <!-- ============================================ -->
+  <!-- CTI DETECTION RULES (100180-100189)          -->
+  <!-- Highest priority - uses if_sid chaining      -->
+  <!-- ============================================ -->
+
+  <!-- CTI Match - Threat Intel flagged IP -->
+  <rule id="100180" level="14">
+    <if_sid>100100</if_sid>
+    <match>threat_intel_tag=THREAT_INTEL_MATCH</match>
+    <description>THREAT INTELLIGENCE MATCH: Source IP flagged by CTI feed - Known malicious actor!</description>
+    <group>scada,cti,threat_intel,malicious_ip,critical</group>
+  </rule>
+
+  <!-- CTI Match on login attempt -->
+  <rule id="100181" level="15">
+    <if_sid>100180</if_sid>
+    <match>event_type=LOGIN_ATTEMPT</match>
+    <description>CTI ALERT: Known malicious IP attempting SCADA login - APT indicator!</description>
+    <group>scada,cti,login,apt,emergency</group>
+  </rule>
+
+  <!-- CTI + BRUTE FORCE: Highest priority combined detection -->
+  <rule id="100184" level="15">
+    <if_sid>100181</if_sid>
+    <match>ioa_type=BRUTE_FORCE_BEHAVIOR</match>
+    <description>BRUTE FORCE ATTACK from known threat actor IP on SCADA HMI - APT credential stealing!</description>
+    <mitre>
+      <id>T1110</id>
+    </mitre>
+    <group>scada,cti,brute_force,apt,emergency</group>
+  </rule>
+
+  <!-- CTI + FAILED LOGIN: Specific failed login from threat actor -->
+  <rule id="100186" level="15">
+    <if_sid>100181</if_sid>
+    <match>status=FAILED</match>
+    <description>CTI ALERT: Failed SCADA login from known malicious IP - Brute force reconnaissance!</description>
+    <mitre>
+      <id>T1110</id>
+    </mitre>
+    <group>scada,cti,login_failure,apt,emergency</group>
+  </rule>
+
+  <!-- CTI Match on PLC command -->
+  <rule id="100182" level="15">
+    <if_sid>100180</if_sid>
+    <match>event_type=PLC_COMMAND</match>
+    <description>CTI ALERT: Known malicious IP sending PLC commands - Active ICS attack!</description>
+    <group>scada,cti,plc,active_attack,emergency</group>
+  </rule>
+
+  <!-- CTI Match with malware -->
+  <rule id="100183" level="15">
+    <if_sid>100180</if_sid>
+    <match>event_type=MALWARE_DETECTED</match>
+    <description>CTI ALERT: Malware from known threat actor - Coordinated ICS attack!</description>
+    <group>scada,cti,malware,coordinated,emergency</group>
+  </rule>
+
+  <!-- Suspicious IP detection -->
+  <rule id="100185" level="8">
+    <if_sid>100100</if_sid>
+    <match>threat_intel_tag=SUSPICIOUS_IP</match>
+    <description>SUSPICIOUS IP: Source IP flagged as suspicious by threat intelligence</description>
+    <group>scada,cti,suspicious</group>
+  </rule>
+
+  <!-- ============================================ -->
+  <!-- LATERAL MOVEMENT RULES (100190-100199)       -->
+  <!-- ============================================ -->
+
+  <!-- Lateral movement detected - MITRE T1021: Remote Services -->
+  <rule id="100190" level="12">
+    <if_sid>100100</if_sid>
+    <match>event_type=LATERAL_MOVEMENT</match>
+    <description>LATERAL MOVEMENT: IT to OT network boundary crossing detected!</description>
+    <mitre>
+      <id>T1021</id>
+    </mitre>
+    <group>scada,lateral,it_ot,alert</group>
+  </rule>
+
+  <!-- Lateral movement from known threat - MITRE T1021: Remote Services -->
+  <rule id="100191" level="15">
+    <if_sid>100190</if_sid>
+    <match>threat_intel_tag=THREAT_INTEL_MATCH</match>
+    <description>CRITICAL: Known threat actor performing lateral movement to OT network!</description>
+    <mitre>
+      <id>T1021</id>
+    </mitre>
+    <group>scada,lateral,cti,emergency</group>
+  </rule>
+
+  <!-- ============================================ -->
+  <!-- SEVERITY-BASED AGGREGATE RULES              -->
+  <!-- ============================================ -->
+
+  <!-- Critical severity event -->
+  <rule id="100195" level="13">
+    <if_sid>100100</if_sid>
+    <match>threat_severity=CRITICAL</match>
+    <description>CRITICAL SEVERITY EVENT in SCADA environment - Immediate investigation required</description>
+    <group>scada,critical_severity</group>
+  </rule>
+
+  <!-- High severity event -->
+  <rule id="100196" level="10">
+    <if_sid>100100</if_sid>
+    <match>threat_severity=HIGH</match>
+    <description>HIGH SEVERITY EVENT in SCADA environment - Investigation recommended</description>
+    <group>scada,high_severity</group>
+  </rule>
+
+</group>

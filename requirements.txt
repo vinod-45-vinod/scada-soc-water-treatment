@@ -1,0 +1,21 @@
+# SOC-MINI SCADA Security Operations Center
+# Node.js Dependencies (install via: npm install)
+
+express==4.18.2
+ws==8.16.0
+cors==2.8.5
+uuid==9.0.0
+dgram==1.0.1
+
+# Docker Containers Required
+# MISP v2.5.36 (port 8443)
+# Wazuh Single Node (port 443, 514, 9200)
+
+# External APIs
+# VirusTotal API (free tier)
+# Shuffle SOAR Cloud (free tier)
+
+# Runtime
+# Node.js >= 18.x
+# npm >= 9.x
+# Docker Desktop >= 4.x

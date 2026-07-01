@@ -1,0 +1,22 @@
+{
+  "name": "soc-mini-scada",
+  "version": "1.0.0",
+  "description": "SOC System for Municipal Water Treatment Plant SCADA/ICS Environment",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "node backend/server.js",
+    "simulate": "node backend/simulator.js",
+    "hunt": "node backend/threat-hunter.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dgram": "^1.0.1",
+    "express": "^4.18.2",
+    "uuid": "^9.0.0",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "markdown-docx": "^1.6.0"
+  }
+}

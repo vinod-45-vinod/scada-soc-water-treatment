@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description"
+    content="SOC Dashboard for Municipal Water Treatment Plant SCADA/ICS Security Operations Center">
+  <title>SOC-MINI | SCADA Security Operations Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <!-- Ambient Background Effects -->
+  <div class="ambient-bg">
+    <div class="grid-overlay"></div>
+    <div class="scan-line"></div>
+  </div>
+
+  <!-- Top Navigation Bar -->
+  <nav class="top-nav" id="topNav">
+    <div class="nav-left">
+      <div class="logo-group">
+        <div class="logo-icon">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <path d="M14 2L2 8v12l12 6 12-6V8L14 2z" stroke="currentColor" stroke-width="1.5" fill="none" />
+            <path d="M14 8L8 11v6l6 3 6-3v-6l-6-3z" stroke="currentColor" stroke-width="1.5"
+              fill="rgba(0,245,160,0.2)" />
+            <circle cx="14" cy="14" r="2" fill="currentColor" />
+          </svg>
+        </div>
+        <div class="logo-text">
+          <span class="logo-title">SOC-MINI</span>
+          <span class="logo-subtitle">SCADA Security Operations</span>
+        </div>
+      </div>
+    </div>
+    <div class="nav-center">
+      <div class="plant-name" id="plantName">Municipal Water Treatment Plant</div>
+    </div>
+    <div class="nav-right">
+      <div class="status-indicators">
+        <div class="indicator" id="simIndicator">
+          <span class="indicator-dot offline"></span>
+          <span class="indicator-label">SIM</span>
+        </div>
+        <div class="indicator" id="wazuhIndicator">
+          <span class="indicator-dot" style="background: var(--accent-blue)"></span>
+          <span class="indicator-label">WAZUH</span>
+        </div>
+        <div class="indicator" id="wsIndicator">
+          <span class="indicator-dot offline"></span>
+          <span class="indicator-label">WS</span>
+        </div>
+      </div>
+      <div class="nav-clock" id="navClock">00:00:00</div>
+    </div>
+  </nav>
+
+  <!-- Tab Navigation -->
+  <div class="tab-nav" id="tabNav">
+    <button class="tab-btn active" data-tab="dashboard" id="tabDashboard">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7" />
+        <rect x="14" y="3" width="7" height="7" />
+        <rect x="3" y="14" width="7" height="7" />
+        <rect x="14" y="14" width="7" height="7" />
+      </svg>
+      Dashboard
+    </button>
+    <button class="tab-btn" data-tab="events" id="tabEvents">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+      </svg>
+      Event Log
+    </button>
+    <button class="tab-btn" data-tab="attack" id="tabAttack">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+      </svg>
+      Attack Sim
+    </button>
+    <button class="tab-btn" data-tab="soar" id="tabSOAR">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+      </svg>
+      SOAR Alerts
+    </button>
+    <button class="tab-btn" data-tab="settings" id="tabSettings">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3" />
+        <path
+          d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+      </svg>
+      Settings
+    </button>
+  </div>
+
+  <!-- Main Content Area -->
+  <main class="main-content" id="mainContent">
+
+    <!-- ===== DASHBOARD TAB ===== -->
+    <section class="tab-content active" id="dashboardTab">
+      <!-- KPI Cards Row -->
+      <div class="kpi-row" id="kpiRow">
+        <div class="kpi-card" id="kpiTotalEvents">
+          <div class="kpi-icon" style="background: rgba(0,245,160,0.1); color: var(--accent-green)">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+            </svg>
+          </div>
+          <div class="kpi-data">
+            <div class="kpi-value" id="totalEventsValue">0</div>
+            <div class="kpi-label">Total Events</div>
+          </div>
+        </div>
+        <div class="kpi-card" id="kpiCritical">
+          <div class="kpi-icon" style="background: rgba(255,59,48,0.1); color: var(--severity-critical)">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+          </div>
+          <div class="kpi-data">
+            <div class="kpi-value critical-pulse" id="criticalValue">0</div>
+            <div class="kpi-label">Critical Alerts</div>
+          </div>
+        </div>
+        <div class="kpi-card" id="kpiThreatIntel">
+          <div class="kpi-icon" style="background: rgba(255,149,0,0.1); color: var(--accent-orange)">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+          </div>
+          <div class="kpi-data">
+            <div class="kpi-value" id="threatIntelValue">0</div>
+            <div class="kpi-label">CTI Matches</div>
+          </div>
+        </div>
+        <div class="kpi-card" id="kpiWazuh">
+          <div class="kpi-icon" style="background: rgba(0,122,255,0.1); color: var(--accent-blue)">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+            </svg>
+          </div>
+          <div class="kpi-data">
+            <div class="kpi-value" id="wazuhSentValue">0</div>
+            <div class="kpi-label">Wazuh UDP Sent</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Row -->
+      <div class="charts-row">
+        <div class="chart-card" id="severityChart">
+          <div class="card-header">
+            <h3>Severity Distribution</h3>
+          </div>
+          <div class="card-body">
+            <div class="severity-bars" id="severityBars">
+              <div class="sev-bar-group">
+                <div class="sev-label">CRITICAL</div>
+                <div class="sev-bar-track">
+                  <div class="sev-bar-fill critical" id="sevCritical" style="width:0%"></div>
+                </div>
+                <div class="sev-count" id="sevCriticalCount">0</div>
+              </div>
+              <div class="sev-bar-group">
+                <div class="sev-label">HIGH</div>
+                <div class="sev-bar-track">
+                  <div class="sev-bar-fill high" id="sevHigh" style="width:0%"></div>
+                </div>
+                <div class="sev-count" id="sevHighCount">0</div>
+              </div>
+              <div class="sev-bar-group">
+                <div class="sev-label">MEDIUM</div>
+                <div class="sev-bar-track">
+                  <div class="sev-bar-fill medium" id="sevMedium" style="width:0%"></div>
+                </div>
+                <div class="sev-count" id="sevMediumCount">0</div>
+              </div>
+              <div class="sev-bar-group">
+                <div class="sev-label">LOW</div>
+                <div class="sev-bar-track">
+                  <div class="sev-bar-fill low" id="sevLow" style="width:0%"></div>
+                </div>
+                <div class="sev-count" id="sevLowCount">0</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-card" id="eventTypeChart">
+          <div class="card-header">
+            <h3>Event Types</h3>
+          </div>
+          <div class="card-body">
+            <div class="event-type-grid" id="eventTypeGrid">
+              <div class="event-type-item" data-type="LOGIN_ATTEMPT">
+                <div class="et-icon login">🔐</div>
+                <div class="et-count" id="etLogin">0</div>
+                <div class="et-label">Login</div>
+              </div>
+              <div class="event-type-item" data-type="PLC_COMMAND">
+                <div class="et-icon plc">⚙️</div>
+                <div class="et-count" id="etPLC">0</div>
+                <div class="et-label">PLC Cmd</div>
+              </div>
+              <div class="event-type-item" data-type="SENSOR_ANOMALY">
+                <div class="et-icon sensor">📡</div>
+                <div class="et-count" id="etSensor">0</div>
+                <div class="et-label">Sensor</div>
+              </div>
+              <div class="event-type-item" data-type="MALWARE_DETECTED">
+                <div class="et-icon malware">🦠</div>
+                <div class="et-count" id="etMalware">0</div>
+                <div class="et-label">Malware</div>
+              </div>
+              <div class="event-type-item" data-type="LATERAL_MOVEMENT">
+                <div class="et-icon lateral">🔀</div>
+                <div class="et-count" id="etLateral">0</div>
+                <div class="et-label">Lateral</div>
+              </div>
+              <div class="event-type-item" data-type="SENSOR_READING">
+                <div class="et-icon normal">📊</div>
+                <div class="et-count" id="etNormal">0</div>
+                <div class="et-label">Normal</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-card" id="topIPsCard">
+          <div class="card-header">
+            <h3>Top Source IPs</h3>
+          </div>
+          <div class="card-body">
+            <div class="top-ips-list" id="topIPsList">
+              <div class="empty-state">No data yet</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Feed -->
+      <div class="live-feed-card" id="liveFeedCard">
+        <div class="card-header">
+          <h3>
+            <span class="live-dot"></span>
+            Live Event Feed
+          </h3>
+          <div class="feed-controls">
+            <button class="btn btn-sm btn-outline" id="btnClearFeed">Clear</button>
+            <select id="feedFilter" class="feed-filter">
+              <option value="all">All Events</option>
+              <option value="CRITICAL">Critical Only</option>
+              <option value="HIGH">High+</option>
+              <option value="attacks">Attacks Only</option>
+            </select>
+          </div>
+        </div>
+        <div class="card-body live-feed-body">
+          <div class="live-feed" id="liveFeed">
+            <div class="empty-state">Waiting for events... Start the simulation to begin.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== EVENT LOG TAB ===== -->
+    <section class="tab-content" id="eventsTab">
+      <div class="events-header">
+        <h2>Event Log</h2>
+        <div class="events-filters">
+          <select id="eventSevFilter" class="filter-select">
+            <option value="">All Severities</option>
+            <option value="CRITICAL">Critical</option>
+            <option value="HIGH">High</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="LOW">Low</option>
+          </select>
+          <select id="eventTypeFilter" class="filter-select">
+            <option value="">All Types</option>
+            <option value="LOGIN_ATTEMPT">Login Attempt</option>
+            <option value="PLC_COMMAND">PLC Command</option>
+            <option value="SENSOR_ANOMALY">Sensor Anomaly</option>
+            <option value="MALWARE_DETECTED">Malware</option>
+            <option value="LATERAL_MOVEMENT">Lateral Movement</option>
+          </select>
+          <button class="btn btn-sm btn-primary" id="btnRefreshEvents">Refresh</button>
+        </div>
+      </div>
+      <div class="events-table-container">
+        <table class="events-table" id="eventsTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Time</th>
+              <th>Severity</th>
+              <th>Type</th>
+              <th>Description</th>
+              <th>Source IP</th>
+              <th>MITRE</th>
+              <th>IoC</th>
+              <th>CTI</th>
+              <th>Risk</th>
+            </tr>
+          </thead>
+          <tbody id="eventsTableBody">
+          </tbody>
+        </table>
+      </div>
+      <!-- Event Detail Panel -->
+      <div class="event-detail-panel" id="eventDetailPanel">
+        <div class="detail-header">
+          <h3>Event Details</h3>
+          <button class="btn-close" id="btnCloseDetail">✕</button>
+        </div>
+        <div class="detail-body" id="eventDetailBody">
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== ATTACK SIM TAB ===== -->
+    <section class="tab-content" id="attackTab">
+      <div class="attack-header">
+        <h2>Attack Simulation Control</h2>
+        <p class="subtitle">Launch simulated cyberattack scenarios against the SCADA environment</p>
+      </div>
+
+      <div class="sim-controls-row">
+        <div class="sim-control-card">
+          <div class="card-header">
+            <h3>Normal Operations</h3>
+          </div>
+          <div class="card-body">
+            <p>Simulate normal SCADA sensor readings, PLC heartbeats, and operator activities.</p>
+            <div class="btn-group">
+              <button class="btn btn-success" id="btnStartSim">▶ Start Simulation</button>
+              <button class="btn btn-danger" id="btnStopSim">■ Stop</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="section-title">Attack Scenarios</h3>
+      <div class="scenario-grid" id="scenarioGrid">
+        <!-- Populated by JS -->
+      </div>
+
+      <!-- Custom Attack Demo -->
+      <div class="live-feed-card" style="margin-top:1.5rem;border:1px solid rgba(255,59,48,0.3);">
+        <div class="card-header" style="background:rgba(255,59,48,0.08);">
+          <h3>🎯 Custom Attack Demo — Full Workflow Visualization</h3>
+        </div>
+        <div class="card-body">
+          <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:1rem;">Enter any attacker IP and see the complete incident response pipeline execute step-by-step.</p>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:1rem;">
+            <input type="text" id="customAttackIP" placeholder="Attacker IP (e.g. 45.33.32.156)" value="45.33.32.156" style="padding:8px 14px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;background:rgba(0,0,0,0.3);color:var(--text-primary);font-size:0.85rem;width:220px;font-family:monospace;">
+            <select id="customAttackUser" style="padding:8px 14px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;background:rgba(0,0,0,0.3);color:var(--text-primary);font-size:0.85rem;">
+              <option value="root">root</option>
+              <option value="admin">admin</option>
+              <option value="operator1">operator1</option>
+              <option value="scada_admin">scada_admin</option>
+            </select>
+            <button class="btn btn-danger" id="btnCustomAttack" onclick="launchCustomAttack()" style="padding:8px 20px;font-weight:700;">
+              🚀 Launch Attack & Show Workflow
+            </button>
+            <button class="btn" id="btnBruteForce5" onclick="launchBruteForce5()" style="padding:8px 20px;font-weight:700;background:linear-gradient(135deg,#ff6b35,#ff3b30);color:white;border:none;border-radius:6px;cursor:pointer;transition:all 0.3s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+              🔥 Generate 5 Brute Force Logs
+            </button>
+          </div>
+          <div id="bruteForceProgress" style="display:none;margin-bottom:1rem;"></div>
+          <div id="workflowTracker" style="display:none;">
+            <div style="font-weight:700;color:var(--accent-cyan);margin-bottom:0.8rem;font-size:0.9rem;">📋 Live Pipeline Execution</div>
+            <div id="workflowSteps"></div>
+            <div id="workflowResult" style="margin-top:1rem;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="attack-kill-chain">
+        <div class="card-header">
+          <h3>ICS Cyber Kill Chain</h3>
+        </div>
+        <div class="kill-chain-visual" id="killChainVisual">
+          <div class="kc-stage" data-stage="Reconnaissance">
+            <div class="kc-icon">🔍</div>
+            <div class="kc-label">Reconnaissance</div>
+            <div class="kc-count" id="kcRecon">0</div>
+          </div>
+          <div class="kc-arrow">→</div>
+          <div class="kc-stage" data-stage="Initial Access">
+            <div class="kc-icon">🚪</div>
+            <div class="kc-label">Initial Access</div>
+            <div class="kc-count" id="kcAccess">0</div>
+          </div>
+          <div class="kc-arrow">→</div>
+          <div class="kc-stage" data-stage="Execution">
+            <div class="kc-icon">⚡</div>
+            <div class="kc-label">Execution</div>
+            <div class="kc-count" id="kcExec">0</div>
+          </div>
+          <div class="kc-arrow">→</div>
+          <div class="kc-stage" data-stage="Persistence">
+            <div class="kc-icon">🔗</div>
+            <div class="kc-label">Persistence</div>
+            <div class="kc-count" id="kcPersist">0</div>
+          </div>
+          <div class="kc-arrow">→</div>
+          <div class="kc-stage" data-stage="Lateral Movement">
+            <div class="kc-icon">↔️</div>
+            <div class="kc-label">Lateral Move</div>
+            <div class="kc-count" id="kcLateral">0</div>
+          </div>
+          <div class="kc-arrow">→</div>
+          <div class="kc-stage" data-stage="Impact">
+            <div class="kc-icon">💥</div>
+            <div class="kc-label">Impact</div>
+            <div class="kc-count" id="kcImpact">0</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== SOAR ALERTS TAB ===== -->
+    <section class="tab-content" id="soarTab">
+      <div class="hunt-header">
+        <h2>🛡️ SOAR Incident Response</h2>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <button class="btn btn-primary" id="btnRefreshSOAR" onclick="refreshSOAR()">🔄 Refresh</button>
+          <span class="indicator" id="shuffleIndicator" style="display:flex;align-items:center;gap:5px;">
+            <span class="indicator-dot" style="background:var(--accent-green)"></span>
+            <span class="indicator-label">Shuffle Connected</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- SOAR KPI Row -->
+      <div class="kpi-row" id="soarKPIRow" style="margin-bottom:1.2rem;">
+        <div class="kpi-card">
+          <div class="kpi-icon" style="background:rgba(255,59,48,0.1);color:var(--severity-critical);">🚨</div>
+          <div class="kpi-data">
+            <div class="kpi-value" id="soarTotalIncidents">0</div>
+            <div class="kpi-label">Total Incidents</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon" style="background:rgba(255,59,48,0.15);color:#ff3b30;">🔥</div>
+          <div class="kpi-data">
+            <div class="kpi-value" id="soarCriticalCount">0</div>
+            <div class="kpi-label">Critical</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon" style="background:rgba(0,245,160,0.1);color:var(--accent-green);">⚡</div>
+          <div class="kpi-data">
+            <div class="kpi-value" id="soarMTTD">0s</div>
+            <div class="kpi-label">Avg MTTD</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon" style="background:rgba(0,122,255,0.1);color:var(--accent-blue);">🔧</div>
+          <div class="kpi-data">
+            <div class="kpi-value" id="soarMTTR">0s</div>
+            <div class="kpi-label">Avg MTTR</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon" style="background:rgba(0,245,160,0.1);color:var(--accent-green);">🛡️</div>
+          <div class="kpi-data">
+            <div class="kpi-value" id="soarVTScans">0</div>
+            <div class="kpi-label">VT Scans</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon" style="background:rgba(88,86,214,0.1);color:#5856d6;">☁️</div>
+          <div class="kpi-data">
+            <div class="kpi-value" id="soarShuffleNodes">0</div>
+            <div class="kpi-label">Nodes/Run</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Shuffle Alerts Feed -->
+      <div class="live-feed-card" style="margin-bottom:1.2rem;">
+        <div class="card-header">
+          <h3><span class="live-dot"></span> Shuffle SOAR Alert Feed</h3>
+        </div>
+        <div class="card-body live-feed-body">
+          <div class="live-feed" id="soarAlertFeed">
+            <div class="empty-state">No SOAR incidents yet. Launch an attack to trigger the pipeline.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Human-in-the-Loop Approvals -->
+      <div class="live-feed-card">
+        <div class="card-header">
+          <h3>🧑‍💻 Human-in-the-Loop — Critical Action Approvals</h3>
+        </div>
+        <div class="card-body">
+          <div id="pendingApprovalsList">
+            <div class="empty-state">No critical actions pending. CRITICAL incidents will appear here for analyst review.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 🚫 Blocked IPs from MISP -->
+      <div class="live-feed-card">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+          <h3>🚫 Blocked IPs — MISP Threat Intel Blocklist</h3>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn btn-sm btn-primary" onclick="refreshBlockedIPs()" id="btnRefreshBlocked" style="font-size:0.75rem;">🔄 Refresh</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <!-- Block IP Form -->
+          <div style="display:flex;gap:10px;padding:0.8rem;background:rgba(255,59,48,0.05);border:1px solid rgba(255,59,48,0.15);border-radius:8px;margin-bottom:0.8rem;align-items:center;flex-wrap:wrap;">
+            <span style="font-weight:700;color:var(--severity-critical);font-size:0.85rem;">🛡️ Block an IP:</span>
+            <input type="text" id="blockIPInput" placeholder="Enter IP to block (e.g. 45.33.32.156)" 
+              style="flex:1;min-width:180px;padding:6px 12px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:var(--text-primary);font-size:0.82rem;font-family:'JetBrains Mono',monospace;">
+            <input type="text" id="blockIPReason" placeholder="Reason (e.g. Brute force attacker)"
+              style="flex:1;min-width:150px;padding:6px 12px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:var(--text-primary);font-size:0.82rem;">
+            <button class="btn btn-sm" onclick="blockIPFromDashboard()" id="btnBlockIP"
+              style="background:linear-gradient(135deg,#ff3b30,#ff6b6b);color:white;font-weight:700;padding:6px 16px;border:none;border-radius:6px;cursor:pointer;font-size:0.8rem;">
+              🚫 Block IP in MISP
+            </button>
+          </div>
+
+          <!-- Blocked IPs Table -->
+          <div id="blockedIPsList" style="max-height:300px;overflow-y:auto;">
+            <div class="empty-state">Loading blocked IPs from MISP...</div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ===== SETTINGS TAB ===== -->
+    <section class="tab-content" id="settingsTab">
+      <div class="settings-header">
+        <h2>System Configuration</h2>
+      </div>
+      <div class="settings-grid">
+        <div class="settings-card">
+          <div class="card-header">
+            <h3>Wazuh Connection</h3>
+          </div>
+          <div class="card-body">
+            <div class="form-group">
+              <label for="wazuhHostInput">Wazuh Manager Host (Docker IP)</label>
+              <input type="text" id="wazuhHostInput" value="127.0.0.1" class="form-input">
+            </div>
+            <div class="form-group">
+              <label for="wazuhPortInput">UDP Port</label>
+              <input type="number" id="wazuhPortInput" value="514" class="form-input">
+            </div>
+            <button class="btn btn-primary" id="btnUpdateWazuh">Update Wazuh Target</button>
+            <div class="wazuh-status" id="wazuhStatus"></div>
+          </div>
+        </div>
+        <div class="settings-card">
+          <div class="card-header">
+            <h3>System Controls</h3>
+          </div>
+          <div class="card-body">
+            <button class="btn btn-danger" id="btnResetAll">🔄 Reset All Data</button>
+            <p class="help-text">Clears all events, metrics, and resets simulation state.</p>
+          </div>
+        </div>
+        <div class="settings-card info-card">
+          <div class="card-header">
+            <h3>Architecture</h3>
+          </div>
+          <div class="card-body">
+            <pre class="arch-diagram">
+┌─────────────────────────────────────────┐
+│           Windows Host Machine          │
+│                                         │
+│  ┌───────────┐     ┌────────────────┐   │
+│  │  SCADA    │────▶│  Wazuh Agent   │   │
+│  │  App      │     └───────┬────────┘   │
+│  │  (Node)   │             │            │
+│  └─────┬─────┘             │            │
+│        │ UDP:514            │            │
+│        ▼                   ▼            │
+│  ┌─────────────────────────────────┐    │
+│  │    Docker Desktop               │    │
+│  │  ┌───────────────────────────┐  │    │
+│  │  │    Wazuh Manager          │  │    │
+│  │  │    (Receives Syslog)      │  │    │
+│  │  └───────────────────────────┘  │    │
+│  └─────────────────────────────────┘    │
+└─────────────────────────────────────────┘
+            </pre>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
